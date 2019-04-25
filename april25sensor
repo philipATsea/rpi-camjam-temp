@@ -1,0 +1,59 @@
+#camjam edkit 2 sensors
+#worksheet 3- temperature
+
+#import libraries
+import os
+import glob
+import time
+from gpiozero import LED
+
+red = LED(18)
+yellow = LED(23)
+green = LED(24)
+
+#initialise gpio pins
+os.system('modprobe w1-gpio') #turns on gpio module
+os.system('modprobe w1-therm') #turns on temp module
+
+#finds correct dievie file to hold temp data
+base_dir = '/sys/bus/w1/devices/'
+device_folder = glob.glob(base_dir + '28-020592452243')[0]
+device_file = device_folder + '/w1_slave'
+
+#a function to read sensor daaaata
+def read_temp_raw():
+    f = open(device_file, 'r') #opens temp device file
+    lines = f.readlines() #returns the text
+    f.close()
+    return lines
+
+#convert the value of sensor into a temp
+def read_temp():
+    lines = read_temp_raw() #read temp device file
+
+    #while the first line does not contain 'YES', wait for 0.2s
+    #and then read device file again
+    while lines[0].strip()[-3:] != 'YES':
+        time.sleep(0.2)
+        lines = read_temp_raw()
+
+    #look for the position of '=' in second line of device file
+    equals_pos = lines[1].find('t=')
+
+    #if the '=' is found, convert the rest of the line after it to celc + f
+    if equals_pos != -1:
+        temp_string = lines[1][equals_pos+2:]
+        temp_c = float(temp_string) / 1000.0
+        temp_f = temp_c * 9.0 / 5.0 + 32.0
+        return temp_c, temp_f
+
+#print out temp until programme is stopped
+while True:
+    print(read_temp())
+    time.sleep(1)
+
+def temp_to_light(temp_c):
+    if temp_c < 20:
+        blue.on()
+    elif temp_c > 50:
+        red.on()
